@@ -26,6 +26,10 @@ public enum CodexNormalizer {
             guard let tool = item["type"].string,
                   !["userMessage", "agentMessage", "hookPrompt"].contains(tool) else { return [] }
             type = method == "item/started" ? .toolStarted : .toolCompleted
+            if ["reasoning", "plan"].contains(tool) {
+                guard method == "item/started" else { return [] }
+                type = .activityChanged
+            }
             activity = .from(tool: tool, command: item["command"].string ?? "")
             summary = tool; identity = item["id"].string
         case "thread/tokenUsage/updated":
@@ -33,7 +37,7 @@ public enum CodexNormalizer {
             type = .usageUpdated
             usage = UsageMetrics(inputTokens: total["inputTokens"].int, outputTokens: total["outputTokens"].int,
                                  cachedInputTokens: total["cachedInputTokens"].int, source: "Codex App Server · thread/tokenUsage/updated", measuredAt: receivedAt)
-        case "turn/plan/updated": type = .toolStarted; activity = .farming; summary = "plan"
+        case "turn/plan/updated": type = .activityChanged; activity = .farming; summary = "plan"
         case "error":
             // A retryable stream error does not prove the task has failed.
             return []

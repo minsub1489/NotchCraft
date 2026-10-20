@@ -3,11 +3,16 @@ import NotchCraftCore
 
 @MainActor final class CodexAdapter: AgentAdapter {
     private let transport = RPCTransport()
+    private let executableOverride: URL?
+    init(executable: URL? = nil) { executableOverride = executable }
     private var gate = PermissionGate()
     private var requestIDs: [String: JSONValue] = [:]
+    private var itemDetails: [String: String] = [:]
     private(set) var owned: Set<String> = []
     private var continuation: AsyncStream<AgentEvent>.Continuation?
     var onDisconnect: (() -> Void)?
+    var onOutput: ((String, String) -> Void)?
+    var onSessionCreated: ((ProviderSession) -> Void)?
     var onUnsupportedRequest: ((String) -> Void)?
     var isConnected: Bool { transport.isRunning }
     func detect() -> AdapterDetection { ExecutableLocator.detections()[0] }
@@ -15,10 +20,10 @@ import NotchCraftCore
         AdapterCapabilities(sessionHistory: true, liveEvents: true, usage: true, approvals: true, cancel: true, resume: false, scope: "connection.owned")
     }
     func connect() async throws {
-        guard let executable = detect().executable else { throw AdapterError.unavailable }
+        guard let executable = executableOverride ?? detect().executable else { throw AdapterError.unavailable }
         transport.onMessage = { [weak self] message in self?.receive(message) }
         transport.onDisconnect = { [weak self] in
-            self?.gate.removeAll(); self?.requestIDs.removeAll(); self?.owned.removeAll(); self?.onDisconnect?()
+            self?.gate.removeAll(); self?.requestIDs.removeAll(); self?.owned.removeAll(); self?.itemDetails.removeAll(); self?.onDisconnect?()
         }
         try transport.start(executable: executable)
         do {
@@ -29,7 +34,7 @@ import NotchCraftCore
             try transport.notify("initialized")
         } catch { transport.stop(); throw error }
     }
-    func disconnect() { transport.stop(); gate.removeAll(); requestIDs.removeAll(); owned.removeAll() }
+    func disconnect() { transport.stop(); gate.removeAll(); requestIDs.removeAll(); owned.removeAll(); itemDetails.removeAll() }
     func subscribeEvents() -> AsyncStream<AgentEvent> {
         AsyncStream(bufferingPolicy: .bufferingNewest(512)) { self.continuation = $0 }
     }
@@ -66,12 +71,13 @@ import NotchCraftCore
         // Starting a turn happens only from the explicit new-task form.
         let result = try await transport.request("thread/start", params: .object([
             "cwd": .string(project.path), "sandbox": .string(allowProjectWrites ? "workspace-write" : "read-only"),
-            "approvalPolicy": .string("on-request"), "approvalsReviewer": .string("user")
+            "approvalPolicy": .string("untrusted"), "approvalsReviewer": .string("user")
         ]))
         guard let id = result["thread"]["id"].string else { throw AdapterError.invalidMessage }
         owned.insert(id)
         let session = ProviderSession(id: id, name: "Codex · \(id.prefix(8))", model: result["model"].string,
                                       cwd: project.path, updatedAt: Date(), owned: true)
+        onSessionCreated?(session)
         continuation?.yield(AgentEvent(providerID: "codex", adapterID: "codex.app-server", agentID: id, sessionID: id,
                                        eventType: .sessionStarted, source: .appServer))
         _ = try await transport.request("turn/start", params: .object([
@@ -80,8 +86,30 @@ import NotchCraftCore
         return session
     }
     private func receive(_ message: JSONValue) {
+        if message["method"].string == "item/started", let itemID = message["params"]["item"]["id"].string {
+            let item = message["params"]["item"]
+            if item["type"].string == "fileChange" {
+                itemDetails[itemID] = item["changes"].array.prefix(40).compactMap { change in
+                    guard let path = change["path"].string else { return nil }
+                    return "\(change["kind"]["type"].string ?? "change"): \(path)"
+                }.joined(separator: "\n")
+            }
+        }
+        if message["method"].string == "item/completed", message["params"]["item"]["type"].string == "agentMessage",
+           let session = message["params"]["threadId"].string, owned.contains(session),
+           let text = message["params"]["item"]["text"].string {
+            onOutput?(session, String(text.prefix(32_768)))
+        }
+        if message["method"].string == "turn/completed", let session = message["params"]["threadId"].string {
+            for request in gate.pending.values where request.sessionID == session {
+                gate.resolve(id: request.id); requestIDs.removeValue(forKey: request.id)
+            }
+        }
         if !message["id"].isNull, !message["method"].isNull {
-            if let request = CodexNormalizer.permission(from: message), owned.contains(request.sessionID) {
+            if var request = CodexNormalizer.permission(from: message), owned.contains(request.sessionID) {
+                let p = message["params"]
+                let context = [p["cwd"].string, p["reason"].string, p["networkApprovalContext"]["host"].string, p["grantRoot"].string, p["itemId"].string.flatMap { itemDetails[$0] }].compactMap { $0 }.filter { !$0.isEmpty }
+                request.detail = String(([request.detail] + context).filter { !$0.isEmpty }.joined(separator: "\n").prefix(12_000))
                 gate.register(request); requestIDs[request.id] = message["id"]
                 continuation?.yield(AgentEvent(eventID: "codex:approval:\(request.id)", providerID: "codex", adapterID: "codex.app-server",
                                                agentID: request.sessionID, sessionID: request.sessionID, taskID: request.taskID,
@@ -93,8 +121,15 @@ import NotchCraftCore
         }
         if message["method"].string == "serverRequest/resolved" {
             let raw = message["params"]["requestId"]
-            if let id = raw.string ?? raw.int.map(String.init) { gate.resolve(id: id); requestIDs.removeValue(forKey: id) }
+            if let id = raw.string ?? raw.int.map(String.init) {
+                if let request = gate.pending[id] {
+                    continuation?.yield(AgentEvent(providerID: "codex", adapterID: "codex.app-server", agentID: request.sessionID,
+                                                   sessionID: request.sessionID, taskID: request.taskID, eventType: .approvalResolved, source: .appServer))
+                }
+                gate.resolve(id: id); requestIDs.removeValue(forKey: id)
+            }
         }
+        if message["method"].string == "item/completed", let itemID = message["params"]["item"]["id"].string { itemDetails.removeValue(forKey: itemID) }
         for event in CodexNormalizer.events(from: message) where owned.contains(event.sessionID) { continuation?.yield(event) }
     }
 }

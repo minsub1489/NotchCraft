@@ -1,0 +1,15 @@
+# Security and privacy boundaries
+
+The app uses one private Codex child process with pipes. It opens no TCP listener, accesses no browser cookies, and does not read credential files. Existing CLI authentication remains managed by Codex. This release does not accept API keys, so it does not create unnecessary Keychain entries. A future credential-accepting adapter must use Keychain.
+
+Events are decoded with a 4 MiB line cap and a 1 MiB outgoing message cap. Partial lines and multiple frames are supported. RPC requests time out after 20 seconds and fail on disconnect. A generation token prevents queued callbacks from a previous process reaching a reconnected transport. Reconnection is bounded and never resumes old/external tasks automatically.
+
+Approve/deny requires an owned session and matching provider/adapter/session/task/request IDs. Terminal tasks clear pending approvals. Server cleanup also clears pending requests. Unknown request protocols fail closed with an explicit user message. File-change approval details use observed changed paths when available. No session-wide acceptance or policy-amendment response is offered.
+
+Codex sandbox and approval policies remain the enforcement layer. Defaults are read-only + untrusted command approvals + user review. Per-task workspace writes are explicit opt-in. A generic deny/allow policy engine, independent high-risk operation classifier, Touch ID step and per-tool plugin isolation are not in this MVP; they must not be represented as implemented protections.
+
+App-owned SQLite records only normalized event IDs, timestamps, status/activity metadata and measured usage. It strips approval details and replaces summaries with controlled event-type labels. It never stores prompts, responses or command output. Bind parameters protect SQL inputs. History is bounded to 10,000 records; UI history is bounded to 200. Result text is held only in memory, capped at 32,768 characters for at most 32 sessions, and cleared on disconnect. The application support directory is mode 0700 and the database mode 0600. User-controlled project selection is stored in UserDefaults; no fixed user directory is embedded in source.
+
+The original Codex process can maintain its own normal session history and use its configured network services; the NotchCraft privacy setting governs only NotchCraft's additional metadata archive. Existing Codex provider/network settings and telemetry configuration still belong to that provider. The NotchCraft child disables App Server analytics; NotchCraft itself sends no telemetry.
+
+Release builds need Developer ID signing and notarization. The current ad-hoc build is for local development. The repository has no third-party source or game assets, no runtime package downloads, and no external code dependencies. App Sandbox is disabled so the app can launch installed CLIs and access user-selected projects; macOS protected locations still require normal OS authorization. No accessibility or automation permissions are requested by the app.

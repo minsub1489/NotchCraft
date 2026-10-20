@@ -11,3 +11,7 @@ The supplied v1.1 specification is product input. Phase 0 + Phase 1 are the firs
 7. Unit/integration tests, actual read-only Codex smoke check, native UI checks and resource measurements. Record unverified hardware/distribution limits.
 
 Later: verified Claude/Gemini/OpenCode integrations, custom agent bridges/skins, signed/notarized releases, Intel and multi-monitor hardware QA. Detection is distinct from telemetry support.
+
+## Delivered boundary
+
+Native MVP, official Codex adapter, original voxel world, explicit demo, metadata archive, scoped approval UI, usage provenance, onboarding/settings, app/ZIP and Xcode project are implemented. See VERIFICATION.md for actual checks and remaining hardware/model-turn verification. Later phases are intentionally still open; installation detection is not presented as an implemented live adapter.

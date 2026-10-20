@@ -11,12 +11,14 @@ import NotchCraftCore
     private var pending: [Int: CheckedContinuation<JSONValue, any Error>] = [:]
     private var deadlines: [Int: Task<Void, Never>] = [:]
     private var nextID = 1
+    private var generation = UUID()
     var onMessage: ((JSONValue) -> Void)?
     var onDisconnect: (() -> Void)?
     var isRunning: Bool { process?.isRunning == true }
 
     func start(executable: URL) throws {
         stop(notify: false)
+        let token = UUID(); generation = token
         let process = Process()
         let stdin = Pipe(), stdout = Pipe(), stderr = Pipe()
         process.executableURL = executable
@@ -28,12 +30,12 @@ import NotchCraftCore
         output = stdout.fileHandleForReading; input = stdin.fileHandleForWriting; errorOutput = stderr.fileHandleForReading
         output?.readabilityHandler = { [weak self] handle in
             let data = handle.availableData
-            Task { @MainActor [weak self] in self?.consume(data) }
+            Task { @MainActor [weak self] in guard self?.generation == token else { return }; self?.consume(data) }
         }
         // Drain diagnostics without saving raw provider output or credentials.
         errorOutput?.readabilityHandler = { handle in _ = handle.availableData }
         process.terminationHandler = { [weak self] _ in
-            Task { @MainActor [weak self] in self?.stop() }
+            Task { @MainActor [weak self] in guard self?.generation == token else { return }; self?.stop() }
         }
         try process.run()
         self.process = process
@@ -85,6 +87,7 @@ import NotchCraftCore
         pending.removeValue(forKey: id)?.resume(with: result)
     }
     func stop(notify: Bool = true) {
+        generation = UUID()
         let wasRunning = process != nil
         output?.readabilityHandler = nil; errorOutput?.readabilityHandler = nil
         process?.terminationHandler = nil

@@ -1,4 +1,6 @@
 import Foundation
+import AppKit
+import SpriteKit
 import Testing
 import NotchCraftCore
 @testable import NotchCraft
@@ -56,4 +58,32 @@ func installedCodexReadOnlySmoke() async throws {
     #expect(sessions.allSatisfy { !$0.owned })
     let quota=try? await adapter.getUsage()
     print("Codex read-only smoke: connected=true sessions=\(sessions.count) quotaAvailable=\(quota != nil) modelTurnsStarted=0")
+}
+
+@MainActor @Test func voxelWorldRendersAndHandlesTwentyFourResidents() throws {
+    let scene=OfficeScene(size:WorldArtwork.size)
+    let view=SKView(frame:CGRect(origin:.zero,size:WorldArtwork.size))
+    view.presentScene(scene)
+    var ledger=EventLedger(acceptsDemo:true)
+    let sessions=(0..<24).map { index in
+        ProviderSession(id:"resident-\(index)",name:"DEMO \(index)",cwd:"",updatedAt:Date())
+    }
+    for session in sessions {
+        _ = ledger.apply(AgentEvent(providerID:"demo",adapterID:"demo",agentID:session.id,sessionID:session.id,
+                                    taskID:"task",eventType:.taskStarted,activityType:.building,source:.demo))
+    }
+    scene.sync(sessions:sessions,snapshots:ledger.sessions,selected:sessions.last?.id,reduceMotion:true)
+    #expect(scene.childNode(withName:"//resident-23") != nil)
+    let texture=try #require(view.texture(from:scene))
+    let bitmap=NSBitmapImageRep(cgImage:texture.cgImage())
+    var swatches=Set<String>()
+    for x in stride(from:0,to:bitmap.pixelsWide,by:40) {
+        for y in stride(from:0,to:bitmap.pixelsHigh,by:40) {
+            if let c=bitmap.colorAt(x:x,y:y) { swatches.insert(c.description) }
+        }
+    }
+    #expect(swatches.count > 20) // Actual rendered island has multiple materials, not a blank/gray surface.
+    scene.sync(sessions:[],snapshots:[:],selected:nil,reduceMotion:true)
+    #expect(scene.childNode(withName:"//resident-23") == nil)
+    view.presentScene(nil)
 }

@@ -48,7 +48,7 @@
 "activity.storage" = "Work safely stored";
 "mode.live" = "Live mode";
 "mode.demo" = "Demo mode";
-"mode.demoNotice" = "DEMO · Simulated events and sample usage";
+"mode.demoNotice" = "DEMO · Simulated events";
 "connection.title" = "Connected agents";
 "connection.connect" = "Connect Codex";
 "connection.disconnect" = "Disconnect";
@@ -188,3 +188,6 @@
 "demo.agent" = "Demo resident";
 "confirm.cancel" = "Cancel the active task?";
 "confirm.disconnect" = "Disconnecting may also stop tasks owned by this app.";
+"session.result" = "Result";
+"session.resultNote" = "Shown in memory only · Not saved to local history";
+"event.activity.changed" = "Updated task activity";

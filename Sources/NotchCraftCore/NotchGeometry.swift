@@ -20,7 +20,7 @@ public struct NotchGeometry: Sendable {
         return CGRect(x: centerX - width / 2, y: screenFrame.maxY - max(38, topInset + 7), width: width, height: max(38, topInset + 7))
     }
     public var expandedFrame: CGRect {
-        let width = min(520, screenFrame.width - 40)
+        let width = min(520, visibleFrame.width - 40)
         return CGRect(x: centerX - width / 2, y: screenFrame.maxY - 230 - topInset, width: width, height: 230 + topInset)
     }
 }

@@ -48,7 +48,7 @@
 "activity.storage" = "결과물을 보관했어요";
 "mode.live" = "실시간 모드";
 "mode.demo" = "데모 모드";
-"mode.demoNotice" = "데모 · 가상 이벤트와 예시 사용량입니다";
+"mode.demoNotice" = "데모 · 가상 이벤트입니다";
 "connection.title" = "연결된 에이전트";
 "connection.connect" = "Codex 연결";
 "connection.disconnect" = "연결 해제";
@@ -188,3 +188,6 @@
 "demo.agent" = "데모 주민";
 "confirm.cancel" = "진행 중인 작업을 취소할까요?";
 "confirm.disconnect" = "연결 해제 시 진행 중인 이 앱의 작업도 종료될 수 있습니다.";
+"session.result" = "결과";
+"session.resultNote" = "실행 중 메모리에만 표시 · 로컬 기록에 저장하지 않음";
+"event.activity.changed" = "작업 단계를 확인했습니다";

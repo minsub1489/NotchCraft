@@ -11,6 +11,7 @@ public enum EventType: String, Codable, Sendable {
     case approvalRequested = "approval.requested", approvalResolved = "approval.resolved"
     case taskCompleted = "task.completed", taskFailed = "task.failed", taskCancelled = "task.cancelled"
     case usageUpdated = "usage.updated"
+    case activityChanged = "activity.changed"
 }
 public enum EventSource: String, Codable, Sendable { case appServer, localLog, demo }
 public enum ActivityType: String, Codable, CaseIterable, Sendable {

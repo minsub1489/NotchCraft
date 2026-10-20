@@ -10,6 +10,7 @@ public struct EventLedger: Sendable {
     @discardableResult public mutating func apply(_ event: AgentEvent, now: Date = Date()) -> EventDisposition {
         guard event.schemaVersion == 1, !event.eventID.isEmpty, event.eventID.count <= 256,
               !event.sessionID.isEmpty, event.sessionID.count <= 256, !event.providerID.isEmpty,
+              !event.adapterID.isEmpty, !event.agentID.isEmpty,
               event.timestamp.timeIntervalSince(now) <= 300,
               event.source != .demo || acceptsDemo else { return .invalid }
         guard !seen.contains(event.eventID) else { return .duplicate }
@@ -21,7 +22,7 @@ public struct EventLedger: Sendable {
         if let current = session.taskID, let incoming = event.taskID, current != incoming,
            ![EventType.taskStarted, .sessionStarted, .connected, .disconnected].contains(event.eventType) { return .outdated }
         if session.status.isTerminal, event.taskID == session.taskID,
-           [.toolStarted, .toolCompleted, .approvalRequested, .approvalResolved].contains(event.eventType) { return .outdated }
+           [.toolStarted, .toolCompleted, .activityChanged, .approvalRequested, .approvalResolved].contains(event.eventType) { return .outdated }
         session.lastUpdated = event.timestamp
         if let taskID = event.taskID { session.taskID = taskID }
         switch event.eventType {
@@ -30,6 +31,7 @@ public struct EventLedger: Sendable {
         case .taskStarted: session.status = .working; session.activity = event.activityType
         case .toolStarted:
             session.status = .working; session.activity = event.activityType; session.toolCount += 1
+        case .activityChanged: session.activity = event.activityType
         case .toolCompleted: break
         case .approvalRequested: session.status = .waitingApproval; session.activity = .approval
         case .approvalResolved: session.status = .working; session.activity = .research
