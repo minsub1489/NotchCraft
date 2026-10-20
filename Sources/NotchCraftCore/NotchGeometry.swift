@@ -15,12 +15,17 @@ public struct NotchGeometry: Sendable {
             cameraWidth = right - left; centerX = (right + left) / 2
         } else { cameraWidth = 0; centerX = screenFrame.midX }
     }
+    /// Visible controls begin below both the menu bar and the physical camera housing.
+    public var contentTopY: CGFloat { min(visibleFrame.maxY, screenFrame.maxY - max(0,topInset)) }
     public var collapsedFrame: CGRect {
-        let width = max(280, cameraWidth + 176)
-        return CGRect(x: centerX - width / 2, y: screenFrame.maxY - max(38, topInset + 7), width: width, height: max(38, topInset + 7))
+        let width = min(max(248, cameraWidth + 72), max(120,visibleFrame.width - 24))
+        let x = min(max(centerX - width / 2, visibleFrame.minX + 12), visibleFrame.maxX - width - 12)
+        return CGRect(x:x,y:contentTopY-36,width:width,height:36)
     }
     public var expandedFrame: CGRect {
-        let width = min(520, visibleFrame.width - 40)
-        return CGRect(x: centerX - width / 2, y: screenFrame.maxY - 230 - topInset, width: width, height: 230 + topInset)
+        let width = min(484, max(120,visibleFrame.width - 24))
+        let height = min(224,max(120,visibleFrame.height - 24))
+        let x = min(max(centerX - width / 2, visibleFrame.minX + 12), visibleFrame.maxX - width - 12)
+        return CGRect(x:x,y:contentTopY-height,width:width,height:height)
     }
 }
