@@ -1,4 +1,5 @@
 import Foundation
+import CoreGraphics
 import Testing
 @testable import NotchCraftCore
 
@@ -143,7 +144,7 @@ private func event(_ type: EventType, id: String = UUID().uuidString, at offset:
         #expect(try archive.recent(limit: 20).count == 1)
     }
     let reopened = try EventArchive(url: url)
-    #expect(try reopened.recent(limit: 20).first?.summary == "도구 실행")
+    #expect(try reopened.recent(limit: 20).first?.summary == EventType.taskStarted.rawValue)
     try reopened.deleteAll()
     #expect(try reopened.recent(limit: 20).isEmpty)
 }
