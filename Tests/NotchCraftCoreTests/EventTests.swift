@@ -148,3 +148,14 @@ private func event(_ type: EventType, id: String = UUID().uuidString, at offset:
     try reopened.deleteAll()
     #expect(try reopened.recent(limit: 20).isEmpty)
 }
+
+@Test func aggregatedUsageDoesNotInventMissingTokensOrOverflow() {
+    let date=Date()
+    let complete=UsageMetrics(inputTokens:10,outputTokens:3,source:"test",measuredAt:date)
+    let missing=UsageMetrics(source:"test",measuredAt:date)
+    #expect(UsageAggregate([complete,missing]).inputTokens == nil)
+    #expect(UsageAggregate([]).inputTokens == nil)
+    #expect(UsageAggregate([complete,complete]).outputTokens == 6)
+    let huge=UsageMetrics(inputTokens:Int.max,outputTokens:0,source:"test",measuredAt:date)
+    #expect(UsageAggregate([huge,complete]).inputTokens == nil)
+}
