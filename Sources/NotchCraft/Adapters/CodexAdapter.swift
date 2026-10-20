@@ -12,6 +12,7 @@ import NotchCraftCore
     private var continuation: AsyncStream<AgentEvent>.Continuation?
     var onDisconnect: (() -> Void)?
     var onOutput: ((String, String) -> Void)?
+    var onQuotaUpdated: ((JSONValue) -> Void)?
     var onSessionCreated: ((ProviderSession) -> Void)?
     var onUnsupportedRequest: ((String) -> Void)?
     var isConnected: Bool { transport.isRunning }
@@ -28,7 +29,7 @@ import NotchCraftCore
         try transport.start(executable: executable)
         do {
             _ = try await transport.request("initialize", params: .object([
-                "clientInfo": .object(["name": .string("notchcraft"), "title": .string("NotchCraft"), "version": .string("0.1.0")]),
+                "clientInfo": .object(["name": .string("notchcraft"), "title": .string("NotchCraft"), "version": .string("0.1.1")]),
                 "capabilities": .null
             ]))
             try transport.notify("initialized")
@@ -86,6 +87,7 @@ import NotchCraftCore
         return session
     }
     private func receive(_ message: JSONValue) {
+        if message["method"].string == "account/rateLimits/updated" { onQuotaUpdated?(message["params"]) }
         if message["method"].string == "item/started", let itemID = message["params"]["item"]["id"].string {
             let item = message["params"]["item"]
             if item["type"].string == "fileChange" {

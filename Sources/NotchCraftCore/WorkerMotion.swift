@@ -60,7 +60,11 @@ public enum WorkerMotion {
             pose.torsoOffset=CGPoint(x:2*bend,y:-5*bend); pose.torsoTilt = -0.16*bend
             pose.headTilt = -0.18*bend; pose.leftArm = -0.1 - 0.45*bend
             pose.rightArm = 0.12 - 1.05*bend; pose.leftLeg = -0.1*bend; pose.rightLeg=0.16*bend
-            pose.pathOffset=CGPoint(x:mix(-7,7,phase < 0.8 ? phase/0.8:(1-phase)/0.2),y:0)
+            let walking = phase < 0.18 || phase > 0.8
+            let stepPhase = phase < 0.18 ? phase/0.18:(phase-0.8)/0.2
+            let step = walking ? sin(stepPhase * .pi * 2)*0.28:0
+            pose.leftLeg += step; pose.rightLeg -= step
+            pose.pathOffset=CGPoint(x:phase < 0.18 ? mix(-7,7,phase/0.18):(phase < 0.8 ? 7:mix(7,-7,(phase-0.8)/0.2)),y:0)
             if (0.39...0.62).contains(phase) { pose.seedProgress=(phase-0.39)/0.23 }
             pose.toolAngle = -0.25*bend
         case .mining,.hammering:
@@ -84,7 +88,8 @@ public enum WorkerMotion {
             let travel=smooth(min(1,phase/0.76)) * .pi * 2
             pose.pathOffset=CGPoint(x:cos(travel)*20,y:sin(travel)*6)
             pose.facing=sin(travel) < 0 ? -1:1
-            let stride=walk ? sin(time*9.5):0
+            let envelope=smooth(phase/0.07)*(1-smooth((phase-0.69)/0.07))
+            let stride=walk ? sin(time*9.5)*envelope:0
             pose.leftLeg=stride*0.42; pose.rightLeg = -stride*0.42
             pose.leftArm = -stride*0.3; pose.rightArm=walk ? stride*0.25:1.7
             pose.torsoOffset.y=walk ? abs(stride)*0.8:0

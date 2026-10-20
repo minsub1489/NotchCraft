@@ -77,7 +77,10 @@ struct UsageView: View {
     var body: some View {
         ScrollView {
             VStack(alignment:.leading,spacing:28) {
-                HStack(alignment:.top) { PanelHeading(title:L("usage.title"),subtitle:L("usage.subtitle")); Spacer(); Button { Task { await store.refresh() } } label: { Image(systemName:"arrow.clockwise") }.buttonStyle(IconButton()).disabled(!store.isConnected || store.isDemo).help(L("connection.refresh")) }
+                PanelHeading(title:L("usage.title"),subtitle:L("usage.subtitle"))
+                AccountQuotaView()
+                Divider().overlay(Theme.line)
+                SectionLabel(title:L("usage.observedTokens"))
                 HStack(spacing:14) {
                     MetricCard(title:L("usage.input"),value:UsageAggregate(usage).inputTokens,symbol:"arrow.down.left")
                     MetricCard(title:L("usage.output"),value:UsageAggregate(usage).outputTokens,symbol:"arrow.up.right")
@@ -94,31 +97,11 @@ struct UsageView: View {
                         }.padding(20).background(Theme.surface).clipShape(RoundedRectangle(cornerRadius:10))
                     }
                 }
-                Divider().overlay(Theme.line)
-                SectionLabel(title:L("usage.quota"))
-                Text(L("usage.quotaNote")).font(.system(size:11)).foregroundStyle(Theme.muted)
-                if !store.isDemo, !store.quota.isNull {
-                    let limits=quotaValues
-                    ForEach(Array(limits.enumerated()),id:\.offset) { _,limit in
-                        ForEach(["primary","secondary"],id:\.self) { key in
-                            if let used=limit[key]["usedPercent"].double, used >= 0, used <= 100 {
-                                VStack(alignment:.leading,spacing:12) {
-                                    HStack { Text("\(limit[key]["windowDurationMins"].int ?? 0) " + L("usage.window")).font(.system(size:11)); Spacer(); Text(used,format:.number.precision(.fractionLength(0...1))) + Text("%") }
-                                    ProgressView(value:used,total:100).tint(Theme.green)
-                                    if let reset=limit[key]["resetsAt"].double { Text(L("usage.reset")+" · "+Date(timeIntervalSince1970:reset).formatted(date:.abbreviated,time:.shortened)).font(.system(size:10)).foregroundStyle(Theme.muted) }
-                                }.padding(18).background(Theme.surface).clipShape(RoundedRectangle(cornerRadius:8))
-                            }
-                        }
-                    }
-                    if let measuredAt=store.quotaUpdatedAt { Text("Codex · account/rateLimits/read · "+measuredAt.formatted(date:.abbreviated,time:.standard)).font(.system(size:10)).foregroundStyle(Theme.muted) }
-                } else { Text(L("usage.unavailable")).font(.system(size:13)).foregroundStyle(Theme.muted).padding(.vertical,20) }
+
             }.padding(30)
         }
     }
-    private var quotaValues:[JSONValue] {
-        if case .object(let map)=store.quota["rateLimitsByLimitId"], !map.isEmpty { return map.keys.sorted().compactMap { map[$0] } }
-        return [store.quota["rateLimits"]]
-    }
+
 }
 struct MetricCard: View {
     let title:String; let value:Int?; let symbol:String

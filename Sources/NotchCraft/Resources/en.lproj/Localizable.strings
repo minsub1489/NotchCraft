@@ -114,7 +114,7 @@
 "usage.quotaNote" = "Account quota is separate from task progress and API billing.";
 "usage.reset" = "Resets";
 "usage.window" = "minute window";
-"usage.noData" = "Start a task here to receive actual token events.";
+"usage.noData" = "Only sessions started here are counted. Account-wide allowance is shown above.";
 "approval.title" = "A little permission, please";
 "approval.command" = "Command execution request";
 "approval.files" = "File change request";
@@ -151,7 +151,7 @@
 "settings.notificationDenied" = "Allow notifications in System Settings.";
 "settings.connection" = "Connection & permissions";
 "settings.limit" = "Only Codex sessions started here can be controlled. Blanket automatic approval is unavailable.";
-"settings.version" = "macOS native · Local first · v0.1.0";
+"settings.version" = "macOS native · Local first · v0.1.1";
 "onboarding.eyebrow" = "WELCOME TO YOUR LITTLE WORLD";
 "onboarding.title" = "Give your AI\na little world of its own.";
 "onboarding.detail" = "Build code, plant ideas, discover answers.\nReal agent activity brings this place to life.";
@@ -191,3 +191,13 @@
 "session.result" = "Result";
 "session.resultNote" = "Shown in memory only · Not saved to local history";
 "event.activity.changed" = "Updated task activity";
+
+"usage.period.weeks" = "%d-week usage";
+"usage.period.days" = "%d-day usage";
+"usage.period.hours" = "%d-hour usage";
+"usage.period.minutes" = "%d-minute usage";
+"usage.period.unknown" = "Usage allowance";
+"usage.used" = "Used";
+"usage.remaining" = "remaining";
+"usage.stale" = "Last observed values. Refresh to check the current allowance.";
+"usage.observedTokens" = "Tokens observed by this app";

@@ -14,6 +14,8 @@ import NotchCraftCore
     try FileManager.default.copyItem(at:source,to:executable)
     try FileManager.default.setAttributes([.posixPermissions:0o700],ofItemAtPath:executable.path)
     let adapter=CodexAdapter(executable:executable)
+    var pushedQuota:JSONValue = .null
+    adapter.onQuotaUpdated = { pushedQuota=$0 }
     defer { adapter.disconnect() }
     let stream=adapter.subscribeEvents()
     try await adapter.connect()
@@ -22,6 +24,7 @@ import NotchCraftCore
     #expect(histories.count == 1)
     #expect(histories.first?.owned == false)
     #expect(try await adapter.getUsage()["rateLimits"]["primary"]["usedPercent"].int == 25)
+    #expect(try await adapter.getUsage()["rateLimits"]["primary"]["usedPercent"].int == 26)
     let consumer=Task { @MainActor in
         var received:[AgentEvent]=[]
         for await event in stream {
@@ -34,6 +37,9 @@ import NotchCraftCore
     let session=try await adapter.startTask(prompt:"Fixture input",project:folder,allowProjectWrites:false)
     #expect(session.owned)
     let received=try await consumer.value
+    let quota=AccountQuotaSnapshot(response:pushedQuota,receivedAt:Date())
+    #expect(quota.buckets.first?.windows.first?.remainingPercent == 73)
+    #expect(quota.buckets.first?.windows.last?.period == .weeks(1))
     #expect(received.contains { $0.activityType == .testing })
     #expect(received.contains { $0.eventType == .approvalRequested })
     #expect(adapter.getPermissionRequests().isEmpty)
@@ -86,4 +92,43 @@ func installedCodexReadOnlySmoke() async throws {
     scene.sync(sessions:[],snapshots:[:],selected:nil,reduceMotion:true)
     #expect(scene.childNode(withName:"//resident-23") == nil)
     view.presentScene(nil)
+}
+
+@Test func weeklyUsageHasFriendlyLocalizedTitle() {
+    #expect(quotaPeriodTitle(.weeks(1),language:"ko") == "1주일 사용량")
+    #expect(quotaPeriodTitle(.hours(5),language:"ko") == "5시간 사용량")
+    #expect(quotaPeriodTitle(.weeks(1),language:"en") == "1-week usage")
+}
+@MainActor @Test func workingResidentMovesLimbsAndStopsOnApproval() throws {
+    let session=ProviderSession(id:"motion-test",name:"DEMO",cwd:"",updatedAt:Date())
+    let worker=WorkerNode(index:0,session:session)
+    worker.configure(activity:.mining,status:.working,taskID:"turn",reduced:false,selected:false)
+    worker.render(elapsed:0.4)
+    let arm=try #require(worker.childNode(withName:"//arm-right"))
+    let before=arm.zRotation
+    worker.render(elapsed:1.3)
+    #expect(arm.zRotation != before)
+    worker.configure(activity:.mining,status:.waitingApproval,taskID:"turn",reduced:false,selected:false)
+    worker.render(elapsed:0.4); let waiting=arm.zRotation
+    worker.render(elapsed:2.7)
+    #expect(arm.zRotation == waiting)
+    #expect(worker.childNode(withName:"//tool")?.isHidden == true)
+    worker.configure(activity:.research,status:.working,taskID:"turn",reduced:false,selected:false)
+    #expect(worker.childNode(withName:"//book")?.isHidden == false)
+}
+@MainActor @Test func notchPanelNativeFrameStaysBelowMenuBar() {
+    _ = NSApplication.shared
+    for screen in NSScreen.screens {
+        let geometry=NotchGeometry(screenFrame:screen.frame,visibleFrame:screen.visibleFrame,topInset:screen.safeAreaInsets.top,
+                                   leftAreaMaxX:screen.auxiliaryTopLeftArea?.maxX,rightAreaMinX:screen.auxiliaryTopRightArea?.minX)
+        let panel=NotchPanel(contentRect:.zero,styleMask:[.borderless,.nonactivatingPanel],backing:.buffered,defer:false)
+        panel.isReleasedWhenClosed=false
+        panel.setFrame(geometry.collapsedFrame,display:false)
+        #expect(abs(panel.frame.maxY-geometry.contentTopY) < 0.5)
+        #expect(panel.frame.maxY <= screen.visibleFrame.maxY)
+        panel.setFrame(geometry.expandedFrame,display:false)
+        #expect(abs(panel.frame.maxY-geometry.contentTopY) < 0.5)
+        #expect(panel.frame.size == geometry.expandedFrame.size)
+        panel.close()
+    }
 }

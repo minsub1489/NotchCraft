@@ -11,4 +11,4 @@ if [[ -n "${DEVELOPER_ID_APPLICATION:-}" ]]; then
         xcrun stapler staple "$app_path"
     fi
 fi
-ditto -c -k --keepParent "$app_path" build/NotchCraft-0.1.0-macos.zip
+ditto -c -k --keepParent "$app_path" build/NotchCraft-0.1.1-macos.zip

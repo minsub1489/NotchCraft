@@ -20,7 +20,9 @@ import NotchCraftCore
     var historicalEvents: [AgentEvent] = []
     var permissions: [PermissionRequest] = []
     var quota: JSONValue = .null
-    var quotaUpdatedAt: Date?
+    var quotaSnapshot: AccountQuotaSnapshot?
+    var quotaRefreshFailed = false
+    var isRefreshingQuota = false
     var detections = ExecutableLocator.detections()
     var language = UserDefaults.standard.string(forKey: "language") ?? "ko" { didSet { UserDefaults.standard.set(language, forKey: "language") } }
     var showNotch = UserDefaults.standard.object(forKey: "showNotch") as? Bool ?? true { didSet { UserDefaults.standard.set(showNotch, forKey: "showNotch"); onNotchVisibility?(showNotch) } }
@@ -73,6 +75,13 @@ import NotchCraftCore
             try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
             historicalEvents = try archive?.recent(limit: 200) ?? []
         } catch { notice = L("error.archive") }
+        adapter.onQuotaUpdated = { [weak self] response in
+            guard let self else { return }
+            let now=Date()
+            guard !AccountQuotaSnapshot(response:response,receivedAt:now).buckets.isEmpty else { return }
+            self.quotaSnapshot=self.quotaSnapshot?.merging(response:response,receivedAt:now) ?? AccountQuotaSnapshot(response:response,receivedAt:now)
+            self.quota=response; self.quotaRefreshFailed=false
+        }
         adapter.onSessionCreated = { [weak self] session in
             self?.sessions.removeAll { $0.id == session.id }; self?.sessions.insert(session, at: 0)
         }
@@ -100,16 +109,19 @@ import NotchCraftCore
             await refresh()
             refreshTask?.cancel()
             refreshTask = Task { [weak self] in
+                var tick=0
                 while !Task.isCancelled {
-                    do { try await Task.sleep(for: .seconds(30)) } catch { return }
+                    do { try await Task.sleep(for: .seconds(15)) } catch { return }
                     guard let self, self.isConnected else { return }
-                    await self.refresh()
+                    if tick.isMultiple(of:2) { await self.refresh() } else { await self.refreshQuota() }
+                    tick += 1
                 }
             }
         } catch { notice = error.localizedDescription; eventTask?.cancel() }
     }
     func refresh() async {
         guard isConnected else { return }
+        async let quotaRefresh:Void = refreshQuota()
         do {
             let discovered = try await adapter.listSessions()
             // Merge by ID; an active new thread may not yet have reached persistent discovery.
@@ -117,15 +129,26 @@ import NotchCraftCore
             for session in discovered { indexed[session.id] = session }
             sessions = indexed.values.sorted { $0.updatedAt > $1.updatedAt }
         } catch { notice = error.localizedDescription }
-        do { quota = try await adapter.getUsage(); quotaUpdatedAt = Date() }
-        catch { quota = .null; quotaUpdatedAt = nil } // Quota is optional and is never inferred.
+        await quotaRefresh
+    }
+    func refreshQuota() async {
+        guard isConnected, !isRefreshingQuota else { return }
+        isRefreshingQuota=true
+        defer { isRefreshingQuota=false }
+        do {
+            let response=try await adapter.getUsage()
+            let now=Date()
+            let snapshot=AccountQuotaSnapshot(response:response,receivedAt:now)
+            guard !snapshot.buckets.isEmpty else { quotaRefreshFailed=true; return }
+            quota=response; quotaSnapshot=snapshot; quotaRefreshFailed=false
+        } catch { quotaRefreshFailed=true } // Keep the last observed value, explicitly marked stale.
     }
     func disconnect() {
         intentionallyDisconnected = true; reconnectTask?.cancel(); refreshTask?.cancel(); eventTask?.cancel()
         adapter.disconnect(); didDisconnect()
     }
     private func didDisconnect() {
-        isConnected = false; permissions = []; quota = .null; quotaUpdatedAt = nil; sessionOutputs = [:]
+        isConnected = false; permissions = []; quotaRefreshFailed=true; sessionOutputs = [:]
         ledger.markDisconnected(providerID: "codex")
         sessions = sessions.map { var value = $0; value.owned = false; return value }
         guard !intentionallyDisconnected, reconnectAttempts < 3 else { return }
@@ -193,9 +216,9 @@ import NotchCraftCore
         let baseNames = ["CODEX", "CLAUDE", "GEMINI", "OPENCODE", "SCOUT", "BUILDER"]
         let count = min(32, max(1, residentCount))
         let names = (0..<count).map { baseNames[$0 % 6] + ($0 >= 6 ? " \($0 / 6 + 1)" : "") }
-        let activities: [ActivityType] = [.building, .research, .farming, .automation, .mining, .crafting]
+        let activities: [ActivityType] = [.building, .research, .farming, .monitoring, .mining, .crafting]
         demoSessions = names.enumerated().map { ProviderSession(id: "demo-\($0.offset)", name: $0.element, provider: "DEMO", model: L("demo.agent"), cwd: "", updatedAt: Date()) }
-        for index in names.indices { demoEvent(index: index, type: index < 4 ? .taskStarted : .connected, activity: activities[index % 6]) }
+        for index in names.indices { demoEvent(index: index, type: .taskStarted, activity: activities[index % 6]) }
         demoTask = Task { [weak self] in
             var tick = 0
             while !Task.isCancelled {

@@ -2,6 +2,10 @@ import Foundation
 
 func L(_ key: String) -> String {
     let language = UserDefaults.standard.string(forKey: "language") ?? "ko"
+    return localized(key, language:language)
+}
+
+func localized(_ key:String, language:String) -> String {
     #if SWIFT_PACKAGE
     let root = Bundle.module
     #else

@@ -71,7 +71,7 @@ struct WorkspaceView: View {
             Circle().fill(store.isConnected ? Theme.green:Theme.muted).frame(width:5,height:5)
             Text(store.isDemo ? L("mode.demo"):(store.isConnected ? "CODEX · APP SERVER":L("connection.offline")))
             Text("/").foregroundStyle(Theme.line)
-            Text("v0.1.0").fontDesign(.monospaced)
+            Text("v0.1.1").fontDesign(.monospaced)
             Button { store.onCollapse?() } label: { Image(systemName:"chevron.up") }.buttonStyle(.plain).help(L("notch.hide"))
         }.font(.system(size:10)).foregroundStyle(Theme.muted).padding(.horizontal,24).frame(height:30)
     }

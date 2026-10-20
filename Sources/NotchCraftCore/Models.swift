@@ -23,6 +23,9 @@ public enum ActivityType: String, Codable, CaseIterable, Sendable {
         case "plan": return .farming
         case "collabAgentToolCall": return .meeting
         case "commandExecution":
+            let executable=command.split(whereSeparator: \.isWhitespace).first.map(String.init)?.split(separator:"/").last.map(String.init)?.trimmingCharacters(in:CharacterSet(charactersIn:"\"'")) ?? ""
+            if ["ps","top","htop","vm_stat","watch","uptime"].contains(executable) { return .monitoring }
+            if ["rg","grep","find","fd"].contains(executable) { return .mining }
             let words = command.lowercased().split { !$0.isLetter && !$0.isNumber }.map(String.init)
             if words.contains(where: ["test", "pytest", "vitest", "jest", "check"].contains) { return .testing }
             if words.contains(where: ["build", "compile", "make"].contains) { return .crafting }
