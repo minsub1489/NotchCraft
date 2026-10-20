@@ -34,3 +34,10 @@ private func json(_ text: String) throws -> JSONValue { try JSONDecoder().decode
     let noTarget = try json(#"{"id":42,"method":"item/fileChange/requestApproval","params":{"threadId":"s"}}"#)
     #expect(CodexNormalizer.permission(from: noTarget) == nil)
 }
+
+@Test func reasoningIsActivityRatherThanAnExecutedTool() throws {
+    let message=try json(#"{"method":"item/started","params":{"threadId":"s","turnId":"t","item":{"id":"r","type":"reasoning"}}}"#)
+    var ledger=EventLedger()
+    for event in CodexNormalizer.events(from:message) { _ = ledger.apply(event) }
+    #expect(ledger.sessions["s"]?.toolCount == 0)
+}

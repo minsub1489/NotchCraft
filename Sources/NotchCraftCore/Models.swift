@@ -122,3 +122,21 @@ public struct PermissionGate: Sendable {
     public mutating func resolve(id: String) { pending.removeValue(forKey: id) }
     public mutating func removeAll() { pending.removeAll() }
 }
+
+public struct UsageAggregate: Equatable, Sendable {
+    public let inputTokens: Int?
+    public let outputTokens: Int?
+    public init(_ values: [UsageMetrics]) {
+        func sum(_ key: KeyPath<UsageMetrics, Int?>) -> Int? {
+            guard !values.isEmpty else { return nil }
+            var total=0
+            for value in values {
+                guard let count=value[keyPath:key], count >= 0 else { return nil }
+                let (next,overflow)=total.addingReportingOverflow(count)
+                guard !overflow else { return nil }; total=next
+            }
+            return total
+        }
+        inputTokens=sum(\.inputTokens); outputTokens=sum(\.outputTokens)
+    }
+}
