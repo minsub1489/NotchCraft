@@ -75,3 +75,9 @@ private func quotaJSON(_ text:String) throws -> JSONValue { try JSONDecoder().de
     #expect(early.leftLeg != later.leftLeg)
     #expect(WorkerMotion.pose(kind:.reading,elapsed:3.8).pageTurn != WorkerMotion.pose(kind:.reading,elapsed:4.2).pageTurn)
 }
+
+@Test func monitoringAndSearchCommandsChooseTheirActualWorkMotion() {
+    #expect(ActivityType.from(tool:"commandExecution",command:"ps -A") == .monitoring)
+    #expect(ActivityType.from(tool:"commandExecution",command:"/usr/bin/top -l 1") == .monitoring)
+    #expect(ActivityType.from(tool:"commandExecution",command:"rg --files Sources") == .mining)
+}
