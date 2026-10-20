@@ -123,7 +123,7 @@ private func event(_ type: EventType, id: String = UUID().uuidString, at offset:
                                  topInset: 32, leftAreaMaxX: 2580, rightAreaMinX: 2772)
     #expect(geometry.cameraWidth == 192)
     #expect(geometry.centerX == 2676)
-    #expect(geometry.collapsedFrame.maxY == frame.maxY)
+    #expect(geometry.collapsedFrame.maxY == frame.maxY - 32)
     let external = NotchGeometry(screenFrame: frame, visibleFrame: frame, topInset: 0)
     #expect(external.cameraWidth == 0)
     #expect(external.collapsedFrame.midX == frame.midX)
