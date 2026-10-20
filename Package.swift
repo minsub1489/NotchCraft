@@ -13,6 +13,7 @@ let package = Package(
         .systemLibrary(name: "CSQLite", pkgConfig: "sqlite3"),
         .target(name: "NotchCraftCore", dependencies: ["CSQLite"]),
         .executableTarget(name: "NotchCraft", dependencies: ["NotchCraftCore"], resources: [.process("Resources")]),
-        .testTarget(name: "NotchCraftCoreTests", dependencies: ["NotchCraftCore"])
+        .testTarget(name: "NotchCraftCoreTests", dependencies: ["NotchCraftCore"]),
+        .testTarget(name: "NotchCraftAdapterTests", dependencies: ["NotchCraft"], resources: [.copy("Fixtures")])
     ]
 )
